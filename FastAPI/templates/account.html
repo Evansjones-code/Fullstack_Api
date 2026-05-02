@@ -1,0 +1,232 @@
+{% extends "layout.html" %}
+{% block content %}
+    <div class="content-section py-3 px-4 mb-4">
+        <h2 class="mb-4">Account Settings</h2>
+        
+        <!-- Profile Info Header -->
+        <div class="d-flex align-items-center mb-4">
+            <img id="profileImage"
+                 class="rounded-circle me-3 object-fit-cover"
+                 src="/static/profile_pics/default.jpg"
+                 alt="Profile picture"
+                 width="100"
+                 height="100">
+            <div>
+                <h5 id="displayUsername" class="mb-0">Loading...</h5>
+                <p id="displayEmail" class="text-body-secondary mb-0"></p>
+            </div>
+        </div>
+
+        <!-- Update Profile Form -->
+        <div class="mb-4">
+            <h5>Update Profile</h5>
+            <form id="updateProfileForm">
+                <div class="mb-3">
+                    <label for="username" class="form-label">Username</label>
+                    <input type="text" class="form-control" id="username" name="username" required maxlength="50">
+                </div>
+                <div class="mb-3">
+                    <label for="email" class="form-label">Email</label>
+                    <input type="email" class="form-control" id="email" name="email" required>
+                </div>
+                <button type="submit" class="btn btn-primary" id="updateProfileBtn">Update Profile</button>
+            </form>
+        </div>
+
+        <hr>
+
+        <!-- Profile Picture Section -->
+        <div class="mb-4">
+            <h5>Profile Picture</h5>
+            <div class="mb-3">
+                <img id="imagePreview" class="rounded-circle d-none object-fit-cover" width="150" height="150">
+            </div>
+            <div class="d-flex gap-2 align-items-start">
+                <input type="file" class="form-control file-input-sm" id="pictureInput" accept="image/*">
+                <button type="button" class="btn btn-primary" id="uploadPictureBtn" disabled>Upload</button>
+            </div>
+            <small class="text-body-secondary">Max size: 5MB (JPEG, PNG, GIF, WebP).</small>
+        </div>
+
+        <hr>
+
+        <!-- Change Password Section -->
+        <div class="mb-4">
+            <h5>Change Password</h5>
+            <form id="changePasswordForm">
+                <div class="mb-3">
+                    <label for="currentPassword" class="form-label">Current Password</label>
+                    <input type="password" class="form-control" id="currentPassword" required>
+                </div>
+                <div class="mb-3">
+                    <label for="newPassword" class="form-label">New Password</label>
+                    <input type="password" class="form-control" id="newPassword" required minlength="8">
+                </div>
+                <div class="mb-3">
+                    <label for="confirmNewPassword" class="form-label">Confirm New Password</label>
+                    <input type="password" class="form-control" id="confirmNewPassword" required>
+                </div>
+                <button type="submit" class="btn btn-primary" id="changePasswordBtn">Change Password</button>
+            </form>
+        </div>
+
+        <hr>
+
+        <!-- Danger Zone -->
+        <div class="mb-4">
+            <button type="button" class="btn btn-light mb-3" id="logoutBtn">Logout</button>
+            <h5 class="text-danger">Danger Zone</h5>
+            <p class="text-body-secondary">Once you delete your account, there is no going back.</p>
+            <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">Delete Account</button>
+        </div>
+    </div>
+
+    <!-- Delete Account Confirmation Modal -->
+    <div class="modal fade" id="deleteAccountModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">Delete Account?</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">Are you sure? This action is permanent.</div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="confirmDeleteAccount">Delete Account</button>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock content %}
+
+{% block scripts %}
+<script type="module">
+    import { getCurrentUser, getToken, logout } from '/static/js/auth.js';
+    import { getErrorMessage } from '/static/js/utils.js';
+
+    let currentUserId = null;
+
+    async function init() {
+        const user = await getCurrentUser();
+        if (!user) {
+            window.location.href = '/login';
+            return;
+        }
+        currentUserId = user.id;
+        
+        // Cache-buster: adds a timestamp to force the browser to reload the image
+        const timestamp = new Date().getTime();
+        const imagePath = user.image_path ? `${user.image_path}?t=${timestamp}` : '/static/profile_pics/default.jpg';
+        
+        document.getElementById('displayUsername').textContent = user.username;
+        document.getElementById('displayEmail').textContent = user.email;
+        document.getElementById('profileImage').src = imagePath;
+        document.getElementById('username').value = user.username;
+        document.getElementById('email').value = user.email;
+    }
+
+    // 1. Update Profile (Username/Email)
+    document.getElementById('updateProfileForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const res = await fetch(`/api/users/${currentUserId}`, {
+            method: 'PUT',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getToken()}` 
+            },
+            body: JSON.stringify({
+                username: document.getElementById('username').value,
+                email: document.getElementById('email').value,
+                password: "placeholder_for_validation" // Backend UserCreate schema requires a password field
+            })
+        });
+        if (res.ok) { 
+            alert('Profile updated!'); 
+            location.reload(); 
+        } else { 
+            alert(await getErrorMessage(res)); 
+        }
+    });
+
+    // 2. Profile Picture Upload Logic
+    const picInput = document.getElementById('pictureInput');
+    const uploadBtn = document.getElementById('uploadPictureBtn');
+    
+    picInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            document.getElementById('imagePreview').src = URL.createObjectURL(file);
+            document.getElementById('imagePreview').classList.remove('d-none');
+            uploadBtn.disabled = false;
+        }
+    });
+
+    uploadBtn.addEventListener('click', async () => {
+        const file = picInput.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('picture', file); 
+
+        const res = await fetch(`/api/users/${currentUserId}/profile-pic`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${getToken()}` },
+            body: formData
+        });
+
+        if (res.ok) {
+            alert("Picture uploaded successfully!");
+            location.reload();
+        } else {
+            alert("Upload failed. Please check the file type or size.");
+        }
+    });
+
+    // 3. Change Password Logic
+    document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const newPass = document.getElementById('newPassword').value;
+        if (newPass !== document.getElementById('confirmNewPassword').value) {
+            alert("New passwords do not match!"); return;
+        }
+        const res = await fetch(`/api/users/${currentUserId}/password`, {
+            method: 'PUT',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${getToken()}` 
+            },
+            body: JSON.stringify({
+                current_password: document.getElementById('currentPassword').value,
+                new_password: newPass
+            })
+        });
+        if (res.ok) {
+            alert('Password changed successfully!');
+            location.reload();
+        } else {
+            alert(await getErrorMessage(res));
+        }
+    });
+
+    // 4. Logout & Delete Account
+    document.getElementById('logoutBtn').addEventListener('click', () => { 
+        logout(); 
+        window.location.href = '/login'; 
+    });
+
+    document.getElementById('confirmDeleteAccount').addEventListener('click', async () => {
+        const res = await fetch(`/api/users/${currentUserId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        if (res.ok) { 
+            logout(); 
+            window.location.href = '/register'; 
+        } else {
+            alert("Could not delete account. Please try again later.");
+        }
+    });
+
+    init();
+</script>
+{% endblock scripts %}
