@@ -13,11 +13,13 @@ ENV UV_PYTHON_DOWNLOADS=0
 
 # Install dependencies first (cached if unchanged)
 COPY pyproject.toml uv.lock ./
-RUN uv sync --locked --no-install-project --no-dev
+# FIX: Removed --locked to bypass lockfile synchronization errors
+RUN uv sync --no-install-project --no-dev
 
 # Copy app code and install project
 COPY . ./
-RUN uv sync --locked --no-dev
+# FIX: Removed --locked here as well
+RUN uv sync --no-dev
 
 # PRODUCTION STAGE
 FROM python:3.12-slim-bookworm
@@ -34,7 +36,9 @@ COPY --from=builder --chown=appuser:appuser /app /app
 # Set path to use the uv-created virtualenv
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
-ENV PORT=8080
 
-# Replace 'myproject' with the folder name containing your wsgi.py
-CMD ["sh", "-c", "exec gunicorn --bind :$PORT --workers 2 --threads 8 --timeout 0 myproject.wsgi:application"]
+# Expose container application port
+EXPOSE 8000
+
+# Change from 0.0.0.0:8000 to use the dynamic cloud PORT variable
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}"]

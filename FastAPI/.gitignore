@@ -3,6 +3,7 @@
 
 ### dotenv ###
 .env
+.env.*
 
 ### Database Files ###
 *.sqlite3
@@ -16,7 +17,6 @@
 
 # Icon must end with two \r
 Icon
-
 
 # Thumbnails
 ._*
@@ -230,5 +230,12 @@ pyrightconfig.json
 # Ignore all local history of files
 .history
 .ionide
+
+### PROJECT EXTRAS (Uv, Docker & FastAPI Uploads) ###
+.uv/
+.uv-cache/
+uv.cache/
+static/profile_pics/*
+!static/profile_pics/.gitkeep
 
 # End of https://www.toptal.com/developers/gitignore/api/python,macos,visualstudiocode,dotenv

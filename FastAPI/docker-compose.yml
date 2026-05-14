@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  web:
+    image: fastapi-app
+    build: .
+    container_name: fastapi-container
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      # Persists your SQLite database file on your Windows machine
+      - ./test.db:/app/test.db
+      # Persists your user uploaded profile images on your Windows machine
+      - ./static/profile_pics:/app/static/profile_pics
+    restart: unless-stopped
