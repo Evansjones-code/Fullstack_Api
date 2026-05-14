@@ -13,13 +13,12 @@ ENV UV_PYTHON_DOWNLOADS=0
 
 # Install dependencies first (cached if unchanged)
 COPY pyproject.toml uv.lock ./
-# FIX: Removed --locked to bypass lockfile synchronization errors
 RUN uv sync --no-install-project --no-dev
 
 # Copy app code and install project
 COPY . ./
-# FIX: Removed --locked here as well
 RUN uv sync --no-dev
+
 
 # PRODUCTION STAGE
 FROM python:3.12-slim-bookworm
@@ -28,7 +27,6 @@ WORKDIR /app
 
 # Run as non-root user for security
 RUN useradd -m appuser && chown -R appuser:appuser /app
-USER appuser
 
 # Copy app and virtual environment from builder stage
 COPY --from=builder --chown=appuser:appuser /app /app
@@ -37,8 +35,14 @@ COPY --from=builder --chown=appuser:appuser /app /app
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 
-# Expose container application port
-EXPOSE 8000
+# Expose container application port (Render defaults to 10000)
+EXPOSE 10000
 
-# Change from 0.0.0.0:8000 to use the dynamic cloud PORT variable
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}"]
+# Fix execution rights on the project folder before dropping root permissions
+RUN chmod +x /app/start.sh
+
+# Switch to secure non-root runtime environment
+USER appuser
+
+# Execute the integrated migration and startup engine script
+CMD ["/bin/sh", "/app/start.sh"]
