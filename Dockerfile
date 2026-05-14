@@ -31,14 +31,17 @@ RUN useradd -m appuser && chown -R appuser:appuser /app
 # Copy app and virtual environment from builder stage
 COPY --from=builder --chown=appuser:appuser /app /app
 
+# Explicitly copy the nested project subdirectories straight into the /app root context
+COPY --chown=appuser:appuser FastAPI/ /app/
+
 # Set path to use the uv-created virtualenv
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 
-# Expose container application port (Render defaults to 10000)
+# Expose container application port
 EXPOSE 10000
 
-# Fix execution rights on the project folder before dropping root permissions
+# Fix execution rights on the project startup script
 RUN chmod +x /app/start.sh
 
 # Switch to secure non-root runtime environment
